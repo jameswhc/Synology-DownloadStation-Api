@@ -72,28 +72,54 @@ class DownloadStation :
             except :
                 return ''
     def AddTask (self,uri = None, file = None, des = '') :
+    '''
+    uri     : 指定的檔案連結 http: , ftp: ,magnet:....
+    file    : 指定的torrent檔案(包括路徑)
+    des     : 檔案下載目的資料夾
+    '''
         TP = self.Task_PL.copy()
+        #設定方法為 create
+        TP.update({'method' : 'create'})
         if self.SID != '' :
             #新增 Task
-            TP.update({'method' : 'create'})
+            #製作 mutipart 之特製格式 
+            #       { <name> : (filename, data [, content_type[, headers]])}
+            TF = { 'api'       :(None , TP['api'])
+                  ,'version'   :(None , str(TP['version']))
+                  ,'method'    :(None , TP['method'])
+                  #必須指定sid ,否則會出現error : code : 105
+                  ,'_sid'      :(None , self.SID)
+                  }
             if des != '' :
                 TP.update({'destination' : des} )
+                TF.update({'destination' :(None,des)})
             if  uri != None :
-                TP.update( {'uri' : uri} )
-                CP = self.DSconnection.get (self.Task_url,params = TP ,verify = False, timeout = 7)
+                try :
+                    TP.update( {'uri' : uri} )
+                    CP = self.DSconnection.get (self.Task_url,params = TP ,verify = False, timeout = 7)
+                except :
+                    return False
                 return CP.json()['success']
             elif file != None :
-                #testing--------------------------------
-                with open (file,'rb') as f:
-                    TP.update ({'file':file})
-                    TF = {'file' :f.read() }
-                    try :
-                        CP = self.DSconnection.post (self.Task_url,params = TP ,verify = False, timeout = 7,data = TF)
-                    except Exception as e :
-                        print (e)
-                        return False
+                try :
+                    with open (file,'rb') as f:
+                        #取得檔案名稱
+                        if '\\' in file :
+                            fn = file.split('\\')[-1]
+                        elif '/' in file :
+                            fn = file.split('/')[-1]
+                        #檔案參數必須是最後一個
+                        TF.update({'file':(fn,f,'application/octet-stream')})
+                        #準備發送本體，headers 由prepare自動產生，勿自行添加
+                        pp = requests.Request('POST',self.Task_url)
+                        pp.files = TF
+                        ppd = pp.prepare()
+                        #本體可查見 ppd.body
+                        #發送本體
+                        CP = self.DSconnection.send (ppd , verify = False , timeout = 20) 
+                except :
+                    return False
                 return CP.json()['success']
-                #-----------------------------------------
             else :
                 return False
         else :
