@@ -108,6 +108,8 @@ class DownloadStation :
                             fn = file.split('\\')[-1]
                         elif '/' in file :
                             fn = file.split('/')[-1]
+                        else :
+                            fn = file
                         #檔案參數必須是最後一個
                         TF.update({'file':(fn,f,'application/octet-stream')})
                         #準備發送本體，headers 由prepare自動產生，勿自行添加
