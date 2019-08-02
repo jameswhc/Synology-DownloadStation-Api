@@ -79,18 +79,20 @@ class MyDownloadStation :
         des     : 檔案下載目的資料夾
         '''
         TP = self.Task_PL.copy()
+        flag = True
         #設定方法為 create
         TP.update({'method' : 'create'})
+        #製作 mutipart 之特製格式 
+        #       { <name> : (filename, data [, content_type[, headers]])}
+        TF = { 'api'       :(None , TP['api'])
+              ,'version'   :(None , str(TP['version']))
+              ,'method'    :(None , TP['method'])
+              }
         if self.SID != '' :
             #新增 Task
-            #製作 mutipart 之特製格式 
-            #       { <name> : (filename, data [, content_type[, headers]])}
-            TF = { 'api'       :(None , TP['api'])
-                  ,'version'   :(None , str(TP['version']))
-                  ,'method'    :(None , TP['method'])
-                  #必須指定sid ,否則會出現error : code : 105
-                  ,'_sid'      :(None , self.SID)
-                  }
+
+            #必須指定sid ,否則會出現error : code : 105
+            TF.update({'_sid'      :(None , self.SID)})
             if des != '' :
                 TP.update({'destination' : des} )
                 TF.update({'destination' :(None,des)})
@@ -98,9 +100,9 @@ class MyDownloadStation :
                 try :
                     TP.update( {'uri' : uri} )
                     CP = self.DSconnection.get (self.Task_url,params = TP ,verify = False, timeout = 7)
+                    flag = CP.json()['success']
                 except :
-                    return False
-                return CP.json()['success']
+                    flag = False
             elif file != None :
                 try :
                     with open (file,'rb') as f:
@@ -120,17 +122,16 @@ class MyDownloadStation :
                         ppd = pp.prepare()
                         #本體可查見 ppd.body
                         #發送本體
-                        print (pp.files)
-                        print (ppd.body)
-                        CP = self.DSconnection.send (ppd , verify = False , timeout = 20) 
-                        print (CP.text)
+                        CP = self.DSconnection.send (ppd , verify = False , timeout = 20)
+                        flag = CP.json()['success']
                 except :
-                    return False
-                return CP.json()['success']
+                    flag = False
             else :
-                return False
+                flag = False
         else :
-            return False
+            flag = False
+        del TF
+        return flag
 
     def List (self,offset = 0):
         '''
