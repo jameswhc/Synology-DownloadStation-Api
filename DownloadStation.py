@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import requests
-class DownloadStation :
+class MyDownloadStation :
     def __init__(self,host = '',port = '',https = False, username = '' ,password = '') :
         self.DSconnection = requests.session()
         self.dsm = {'host'    : host ,
@@ -71,6 +71,7 @@ class DownloadStation :
                 return A.json()['data']['sid']
             except :
                 return ''
+
     def AddTask (self,uri = None, file = None, des = '') :
         '''
         uri     : 指定的檔案連結 http: , ftp: ,magnet:....
@@ -111,6 +112,7 @@ class DownloadStation :
                         else :
                             fn = file
                         #檔案參數必須是最後一個
+                        TF.pop('file',None)
                         TF.update({'file':(fn,f,'application/octet-stream')})
                         #準備發送本體，headers 由prepare自動產生，勿自行添加
                         pp = requests.Request('POST',self.Task_url)
@@ -118,7 +120,10 @@ class DownloadStation :
                         ppd = pp.prepare()
                         #本體可查見 ppd.body
                         #發送本體
+                        print (pp.files)
+                        print (ppd.body)
                         CP = self.DSconnection.send (ppd , verify = False , timeout = 20) 
+                        print (CP.text)
                 except :
                     return False
                 return CP.json()['success']
@@ -126,6 +131,7 @@ class DownloadStation :
                 return False
         else :
             return False
+
     def List (self,offset = 0):
         '''
         offset : 取回第 (offset + 1) 筆(含)之後資料
