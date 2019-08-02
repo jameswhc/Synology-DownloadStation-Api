@@ -83,17 +83,15 @@ class MyDownloadStation :
         #設定方法為 create
         TP.update({'method' : 'create'})
         #製作 mutipart 之特製格式 
-        #       { <name> : (filename, data [, content_type[, headers]])}
-        TF = { 'api'       :(None , TP['api'])
-              ,'version'   :(None , str(TP['version']))
-              ,'method'    :(None , TP['method'])
+        #    { <name>      :(filename, data [, content_type[, headers]])}
+        TF = { 'api'       :(None    , TP['api'])
+              ,'version'   :(None    , str(TP['version']))
+              ,'method'    :(None    , TP['method'])
               }
         if self.SID != '' :
             #新增 Task
-
-            #必須指定sid ,否則會出現error : code : 105
-            TF.update({'_sid'      :(None , self.SID)})
             if des != '' :
+                #指定目的資料夾
                 TP.update({'destination' : des} )
                 TF.update({'destination' :(None,des)})
             if  uri != None :
@@ -113,15 +111,17 @@ class MyDownloadStation :
                             fn = file.split('/')[-1]
                         else :
                             fn = file
-                        #檔案參數必須是最後一個
+                        #使用file模式，必須指定sid ,否則會出現error : code : 105
+                        TF.update({'_sid'      :(None , self.SID)})
+                        #檔案參數必須是最後一個；先清除，再新增，確保為最後一個參數
                         TF.pop('file',None)
                         TF.update({'file':(fn,f,'application/octet-stream')})
                         #準備發送本體，headers 由prepare自動產生，勿自行添加
                         pp = requests.Request('POST',self.Task_url)
                         pp.files = TF
                         ppd = pp.prepare()
-                        #本體可查見 ppd.body
-                        #發送本體
+                        #欲查看準備文案，可 print (ppd.body)
+                        #發送準備文案
                         CP = self.DSconnection.send (ppd , verify = False , timeout = 20)
                         flag = CP.json()['success']
                 except :
