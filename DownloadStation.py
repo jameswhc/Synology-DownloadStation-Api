@@ -72,11 +72,11 @@ class DownloadStation :
             except :
                 return ''
     def AddTask (self,uri = None, file = None, des = '') :
-    '''
-    uri     : 指定的檔案連結 http: , ftp: ,magnet:....
-    file    : 指定的torrent檔案(包括路徑)
-    des     : 檔案下載目的資料夾
-    '''
+        '''
+        uri     : 指定的檔案連結 http: , ftp: ,magnet:....
+        file    : 指定的torrent檔案(包括路徑)
+        des     : 檔案下載目的資料夾
+        '''
         TP = self.Task_PL.copy()
         #設定方法為 create
         TP.update({'method' : 'create'})
