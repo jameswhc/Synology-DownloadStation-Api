@@ -26,7 +26,10 @@ class MyDownloadStation :
                    'query' : 'ALL'
                   }
         try :
-            q = self.DSconnection.get('{}/{}'.format (self.url,'/query.cgi'),params = Query_PL ,verify = False, timeout = 7).json()
+            if self.dsm['https'] :
+                q = self.DSconnection.get('{}/{}'.format (self.url,'/query.cgi'),params = Query_PL ,verify = False, timeout = 7).json()
+            else :
+                q = self.DSconnection.get('{}/{}'.format (self.url,'/query.cgi'),params = Query_PL , timeout = 7).json()
             #查詢 Auth API版本
             Auth_version = q['data']['SYNO.API.Auth']['maxVersion']
             Auth_path = q['data']['SYNO.API.Auth']['path']
@@ -67,13 +70,85 @@ class MyDownloadStation :
             Auth_PL.update({'account' : username ,
                             'passwd'  : password  })
             try :
-                A = self.DSconnection.get (self.Auth_url,params = Auth_PL ,verify = False,timeout = 7)
+                if self.dsm['https'] :
+                    A = self.DSconnection.get (self.Auth_url,params = Auth_PL ,verify = False,timeout = 7)
+                else :
+                    A = self.DSconnection.get (self.Auth_url,params = Auth_PL ,timeout = 7)
                 return A.json()['data']['sid']
             except :
                 return ''
 
     def AddTask (self,uri = None, file = None, des = '') :
         '''
+        本函式使用list製作multipart格式，file容易控制在最後一個參數，建議使用。
+        uri     : 指定的檔案連結 http: , ftp: ,magnet:....
+        file    : 指定的torrent檔案(包括路徑)；編碼為utf-8時，有些檔案無法上傳。
+        des     : 檔案下載目的資料夾
+        '''
+        TP = self.Task_PL.copy()
+        flag = True
+        #設定方法為 create
+        TP.update({'method' : 'create'})
+        #製作 mutipart 之特製格式 list;名稱 + 2 或 3 或 4 維之 turple
+        #    [( <name>      ,(filename, data |, content_type|, headers))]
+        TF = []
+        TF.append (('api'       ,(None    , TP['api'])))
+        TF.append (('version'   ,(None    , str(TP['version']))))
+        TF.append (('method'    ,(None    , TP['method'])))
+        if self.SID != '' :
+            #新增 Task
+            if des != '' :
+                #指定目的資料夾
+                TP.update({'destination' : des} )
+                TF.append(('destination' ,(None,des)))
+            if  uri != None :
+                try :
+                    TP.update( {'uri' : uri} )
+                    if self.dsm['https'] :
+                        CP = self.DSconnection.get (self.Task_url,params = TP ,verify = False, timeout = 7)
+                    else :
+                        CP = self.DSconnection.get (self.Task_url,params = TP , timeout = 7)
+                    flag = CP.json()['success']
+                except :
+                    flag = False
+            elif file != None :
+                try :
+                    with open (file,'rb') as f:
+                        #取得檔案名稱
+                        if '\\' in file :
+                            fn = file.split('\\')[-1]
+                        elif '/' in file :
+                            fn = file.split('/')[-1]
+                        else :
+                            fn = file
+                        #使用file模式，必須指定sid ,否則會出現error : code : 105
+                        TF.append(('_sid'      ,(None , self.SID)))
+                        #檔案參數必須是最後一個
+                        TF.append(('file',(fn,f,'application/octet-stream')))
+                        #準備發送本體，headers 由prepare自動產生，勿自行添加
+                        pp = requests.Request('POST',self.Task_url)
+                        pp.files = TF
+                        ppd = pp.prepare()
+                        #欲查看準備文案，可 print (ppd.body)
+                        #發送準備文案
+                        if self.dsm['https'] :
+                            CP = self.DSconnection.send (ppd , verify = False , timeout = 20 )
+                        else :
+                            CP = self.DSconnection.send (ppd , timeout = 20 )
+                        flag = CP.json()['success']
+                except Exception as e:
+                    print (e)
+                    flag = False
+            else :
+                flag = False
+        else :
+            flag = False
+        del TF
+        return flag
+
+    def AddTask1 (self,uri = None, file = None, des = '') :
+        '''
+        本函式使用dict製作multipart格式，但file難以控制在最後一個參數，不建議使用。
         uri     : 指定的檔案連結 http: , ftp: ,magnet:....
         file    : 指定的torrent檔案(包括路徑)
         des     : 檔案下載目的資料夾
@@ -82,8 +157,8 @@ class MyDownloadStation :
         flag = True
         #設定方法為 create
         TP.update({'method' : 'create'})
-        #製作 mutipart 之特製格式 
-        #    { <name>      :(filename, data [, content_type[, headers]])}
+        #製作 mutipart 之特製格式 dict;名稱 + 2 或 3 或 4 維之 turple
+        #    { <name>      :(filename, data |, content_type |, headers)}
         TF = { 'api'       :(None    , TP['api'])
               ,'version'   :(None    , str(TP['version']))
               ,'method'    :(None    , TP['method'])
@@ -167,7 +242,10 @@ class MyDownloadStation :
                    'additional' : 'file,detail'
                   })
         try :
-            CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            if self.dsm['https'] :
+                CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            else :
+                CP = self.DSconnection.get (self.Task_url , params = TP , timeout = 7)
             return CP.json()
         except :
             return {'success' : False }
@@ -191,7 +269,10 @@ class MyDownloadStation :
                    'additional' : 'detail'
                   })
         try :
-            CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            if self.dsm['https'] :
+                CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            else :
+                CP = self.DSconnection.get (self.Task_url , params = TP , timeout = 7)
             return CP.json()
         except :
             return {'success' : False }
@@ -203,7 +284,10 @@ class MyDownloadStation :
                    'force_complete' : False
                   })
         try :
-            CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            if self.dsm['https'] :
+                CP = self.DSconnection.get (self.Task_url , params = TP ,verify = False, timeout = 7)
+            else :
+                CP = self.DSconnection.get (self.Task_url , params = TP , timeout = 7)
             '''
             {
                 'success' : True / False
